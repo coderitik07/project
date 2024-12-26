@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Health Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      input,
+      button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+      }
+      #recordsList {
+        margin-top: 20px;
+        border-top: 1px solid #ddd;
+        padding-top: 20px;
+      }
+      .record-item {
+        background-color: #f4f4f4;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Health Tracker</h1>
+
+    <div id="connectWallet">
+      <button onclick="connectWallet()">Connect Wallet</button>
+    </div>
+
+    <div id="healthTrackerForm" style="display: none">
+      <div class="form-group">
+        <label>Weight (kg):</label>
+        <input type="number" id="weight" required />
+      </div>
+      <div class="form-group">
+        <label>Blood Pressure Systolic:</label>
+        <input type="number" id="systolic" required />
+      </div>
+      <div class="form-group">
+        <label>Blood Pressure Diastolic:</label>
+        <input type="number" id="diastolic" required />
+      </div>
+      <div class="form-group">
+        <label>Heart Rate (bpm):</label>
+        <input type="number" id="heartRate" required />
+      </div>
+      <div class="form-group">
+        <label>Notes:</label>
+        <input type="text" id="notes" />
+      </div>
+      <button onclick="addHealthRecord()">Add Health Record</button>
+    </div>
+
+    <div id="recordsList"></div>
+
+    <script>
+      // Replace with your actual deployed contract address and ABI
+      const CONTRACT_ADDRESS = "0x63d3625BB028dFe1A6A621eDdedb4b419eE3FBa8";
+      const CONTRACT_ABI = [
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "weight",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "bloodPressureSystolic",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "bloodPressureDiastolic",
+              type: "uint256",
+            },
+            {
+              internalType: "uint256",
+              name: "heartRate",
+              type: "uint256",
+            },
+            {
+              internalType: "string",
+              name: "notes",
+              type: "string",
+            },
+          ],
+          name: "addHealthRecord",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "user",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "timestamp",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "weight",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "bloodPressureSystolic",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "bloodPressureDiastolic",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "heartRate",
+              type: "uint256",
+            },
+          ],
+          name: "HealthRecordAdded",
+          type: "event",
+        },
+        {
+          inputs: [],
+          name: "getHealthRecordCount",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getHealthRecords",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "uint256",
+                  name: "timestamp",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "weight",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "bloodPressureSystolic",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "bloodPressureDiastolic",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "heartRate",
+                  type: "uint256",
+                },
+                {
+                  internalType: "string",
+                  name: "notes",
+                  type: "string",
+                },
+              ],
+              internalType: "struct HealthTracker.HealthRecord[]",
+              name: "",
+              type: "tuple[]",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getLatestHealthRecord",
+          outputs: [
+            {
+              components: [
+                {
+                  internalType: "uint256",
+                  name: "timestamp",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "weight",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "bloodPressureSystolic",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "bloodPressureDiastolic",
+                  type: "uint256",
+                },
+                {
+                  internalType: "uint256",
+                  name: "heartRate",
+                  type: "uint256",
+                },
+                {
+                  internalType: "string",
+                  name: "notes",
+                  type: "string",
+                },
+              ],
+              internalType: "struct HealthTracker.HealthRecord",
+              name: "",
+              type: "tuple",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ];
+
+      let web3;
+      let contract;
+      let userAccount;
+
+      async function connectWallet() {
+        // Check if MetaMask is installed
+        if (typeof window.ethereum !== "undefined") {
+          try {
+            // Request account access
+            const accounts = await window.ethereum.request({
+              method: "eth_requestAccounts",
+            });
+            userAccount = accounts[0];
+
+            // Initialize Web3
+            web3 = new Web3(window.ethereum);
+
+            // Create contract instance
+            contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+            // Show health tracker form
+            document.getElementById("connectWallet").style.display = "none";
+            document.getElementById("healthTrackerForm").style.display =
+              "block";
+
+            // Fetch and display existing records
+            await fetchHealthRecords();
+          } catch (error) {
+            alert("Failed to connect wallet: " + error.message);
+          }
+        } else {
+          alert("Please install MetaMask to use this app!");
+        }
+      }
+
+      async function addHealthRecord() {
+        if (!contract) {
+          alert("Please connect wallet first!");
+          return;
+        }
+
+        const weight = document.getElementById("weight").value;
+        const systolic = document.getElementById("systolic").value;
+        const diastolic = document.getElementById("diastolic").value;
+        const heartRate = document.getElementById("heartRate").value;
+        const notes = document.getElementById("notes").value;
+
+        try {
+          await contract.methods
+            .addHealthRecord(weight, systolic, diastolic, heartRate, notes)
+            .send({ from: userAccount });
+
+          // Refresh records
+          await fetchHealthRecords();
+
+          // Clear form
+          document.getElementById("weight").value = "";
+          document.getElementById("systolic").value = "";
+          document.getElementById("diastolic").value = "";
+          document.getElementById("heartRate").value = "";
+          document.getElementById("notes").value = "";
+        } catch (error) {
+          alert("Failed to add health record: " + error.message);
+        }
+      }
+
+      async function fetchHealthRecords() {
+        if (!contract) return;
+
+        try {
+          const records = await contract.methods
+            .getHealthRecords()
+            .call({ from: userAccount });
+          const recordsList = document.getElementById("recordsList");
+          recordsList.innerHTML = "<h2>Your Health Records</h2>";
+
+          records.forEach((record, index) => {
+            const recordDate = new Date(
+              record.timestamp * 1000
+            ).toLocaleString();
+            const recordDiv = document.createElement("div");
+            recordDiv.className = "record-item";
+            recordDiv.innerHTML = `
+                        <strong>Record ${index + 1} - ${recordDate}</strong><br>
+                        Weight: ${record.weight} kg<br>
+                        Blood Pressure: ${record.bloodPressureSystolic}/${
+              record.bloodPressureDiastolic
+            }<br>
+                        Heart Rate: ${record.heartRate} bpm<br>
+                        Notes: ${record.notes}
+                    `;
+            recordsList.appendChild(recordDiv);
+          });
+        } catch (error) {
+          console.error("Error fetching records:", error);
+        }
+      }
+    </script>
+  </body>
+</html>
